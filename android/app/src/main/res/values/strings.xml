@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sổ Xe</string>
+    <string name="title_activity_main">Sổ Xe</string>
+    <string name="package_name">vn.soxe.app</string>
+    <string name="custom_url_scheme">vn.soxe.app</string>
+</resources>
