@@ -6,6 +6,7 @@ import { createId } from '../utils/format';
 interface AddVehicleModalProps {
   open: boolean;
   editingVehicle: Vehicle | null;
+  defaultPlate?: string;
   onClose: () => void;
   onSave: (vehicle: Vehicle) => void;
 }
@@ -13,6 +14,7 @@ interface AddVehicleModalProps {
 export function AddVehicleModal({
   open,
   editingVehicle,
+  defaultPlate,
   onClose,
   onSave,
 }: AddVehicleModalProps) {
@@ -37,7 +39,7 @@ export function AddVehicleModal({
         setDescription(editingVehicle.description);
       } else {
         setName('');
-        setPlate('');
+        setPlate(defaultPlate ?? '');
         setMake('');
         setModel('');
         setYear('');
@@ -46,7 +48,7 @@ export function AddVehicleModal({
       }
       setError('');
     }
-  }, [open, editingVehicle]);
+  }, [open, editingVehicle, defaultPlate]);
 
   if (!open) return null;
 

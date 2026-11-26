@@ -201,7 +201,7 @@ export function computeVehicleAnalytics(
 
   const consumptionValues = filteredFuel
     .map((l) => l.consumption)
-    .filter((v): v is number => v !== null && v > 0 && v < 50);
+    .filter((v): v is number => v !== null && v > 0);
 
   let avgConsumption: number | null = null;
   if (weightedDistanceForConsumption > 0 && weightedLitresForConsumption > 0) {

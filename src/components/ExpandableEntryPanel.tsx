@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Fuel, Wrench, Check } from 'lucide-react';
+import { Fuel, Wrench, X } from 'lucide-react';
 import {
   DEFAULT_CATEGORIES,
   EntryFormTab,
@@ -84,7 +84,6 @@ export function ExpandableEntryPanel({
   const [maintNotes, setMaintNotes] = useState('');
 
   const [errorMsg, setErrorMsg] = useState('');
-  const [savedFeedback, setSavedFeedback] = useState('');
 
   // Keep targetVehicleId synced with currently selected vehicle when not editing
   useEffect(() => {
@@ -98,7 +97,7 @@ export function ExpandableEntryPanel({
     if (!editingFuel && targetVehicleId) {
       const lastPrice = latestUnitPriceByVehicle[targetVehicleId];
       if (lastPrice && lastPrice > 0 && !fuelPrice) {
-        setFuelPrice(String(Math.round(lastPrice)));
+        setFuelPrice(String(lastPrice));
       }
     }
   }, [targetVehicleId, latestUnitPriceByVehicle, editingFuel, fuelPrice]);
@@ -111,9 +110,9 @@ export function ExpandableEntryPanel({
         ? editingFuel.date.replace(' ', 'T').slice(0, 16)
         : `${editingFuel.date.slice(0, 10)}T08:00`;
       setFuelDate(dt);
-      setFuelPrice(editingFuel.unitPrice ? String(Math.round(editingFuel.unitPrice)) : '');
-      setFuelTotalCost(editingFuel.totalCost ? String(Math.round(editingFuel.totalCost)) : '');
-      setFuelOdo(editingFuel.odo ? String(editingFuel.odo) : '');
+      setFuelPrice(editingFuel.unitPrice !== undefined ? String(editingFuel.unitPrice) : '');
+      setFuelTotalCost(editingFuel.totalCost !== undefined ? String(editingFuel.totalCost) : '');
+      setFuelOdo(editingFuel.odo !== undefined ? String(editingFuel.odo) : '');
       setFuelFull(editingFuel.full);
       setFuelNotes(editingFuel.notes);
       setErrorMsg('');
@@ -131,7 +130,7 @@ export function ExpandableEntryPanel({
       setMaintOdo(editingMaintenance.odo > 0 ? String(editingMaintenance.odo) : '');
       setMaintTitle(editingMaintenance.title);
       setMaintCost(
-        editingMaintenance.totalCost ? String(Math.round(editingMaintenance.totalCost)) : ''
+        editingMaintenance.totalCost !== undefined ? String(editingMaintenance.totalCost) : ''
       );
       setMaintCategoryId(editingMaintenance.categoryId || '2');
       setMaintNotes(editingMaintenance.notes);
@@ -175,11 +174,6 @@ export function ExpandableEntryPanel({
     return merged.slice(0, 8);
   }, [recentMaintenanceTitles]);
 
-  const showSuccessToast = (msg: string) => {
-    setSavedFeedback(msg);
-    setTimeout(() => setSavedFeedback(''), 3000);
-  };
-
   const resetFuelForm = () => {
     setFuelDate(toDatetimeLocalValue());
     setFuelTotalCost('');
@@ -187,7 +181,7 @@ export function ExpandableEntryPanel({
     setFuelNotes('');
     setFuelFull(true);
     const lastPrice = latestUnitPriceByVehicle[targetVehicleId];
-    setFuelPrice(lastPrice ? String(Math.round(lastPrice)) : '');
+    setFuelPrice(lastPrice ? String(lastPrice) : '');
     setErrorMsg('');
   };
 
@@ -218,20 +212,21 @@ export function ExpandableEntryPanel({
       setErrorMsg('Vui lòng chọn thời gian đổ nhiên liệu.');
       return;
     }
-    if (!Number.isFinite(odoNum) || odoNum <= 0) {
+    if (!Number.isFinite(odoNum)) {
       setErrorMsg('Vui lòng nhập số ODO hiện tại của xe (km).');
       return;
     }
-    if (!Number.isFinite(unitPriceNum) || unitPriceNum <= 0) {
-      setErrorMsg('Vui lòng nhập giá nhiên liệu hợp lệ (đ/lít).');
+    if (!Number.isFinite(unitPriceNum)) {
+      setErrorMsg('Vui lòng nhập giá nhiên liệu (đ/lít).');
       return;
     }
-    if (!Number.isFinite(totalCostNum) || totalCostNum <= 0) {
+    if (!Number.isFinite(totalCostNum)) {
       setErrorMsg('Vui lòng nhập tổng chi phí đổ nhiên liệu (VNĐ).');
       return;
     }
 
-    const litres = Number((totalCostNum / unitPriceNum).toFixed(3));
+    const litres =
+      unitPriceNum > 0 ? Number((totalCostNum / unitPriceNum).toFixed(3)) : 0;
     const dateStr = fromDatetimeLocalValue(fuelDate);
 
     const log: FuelLog = {
@@ -251,13 +246,10 @@ export function ExpandableEntryPanel({
     onSaveFuel(log, Boolean(editingFuel));
     if (editingFuel) {
       onCancelEdit();
-      showSuccessToast('Đã cập nhật bản ghi đổ nhiên liệu.');
     } else {
       resetFuelForm();
-      showSuccessToast(
-        `Đã lưu đổ xăng ${formatNumber(litres, 2)} lít (${formatVnd(totalCostNum)}) tại ODO ${formatNumber(odoNum)} km.`
-      );
     }
+    onToggleExpand();
   };
 
   const handleMaintenanceSubmit = (e: React.FormEvent) => {
@@ -281,11 +273,11 @@ export function ExpandableEntryPanel({
       setErrorMsg('Vui lòng nhập tên hạng mục bảo dưỡng hoặc sửa chữa.');
       return;
     }
-    if (!Number.isFinite(costNum) || costNum < 0) {
-      setErrorMsg('Vui lòng nhập tổng chi phí hợp lệ (VNĐ).');
+    if (!Number.isFinite(costNum)) {
+      setErrorMsg('Vui lòng nhập tổng chi phí (VNĐ).');
       return;
     }
-    if (maintOdo.trim() !== '' && (!Number.isFinite(odoNum) || odoNum < 0)) {
+    if (maintOdo.trim() !== '' && !Number.isFinite(odoNum)) {
       setErrorMsg('Số ODO không hợp lệ.');
       return;
     }
@@ -309,99 +301,90 @@ export function ExpandableEntryPanel({
     onSaveMaintenance(log, Boolean(editingMaintenance));
     if (editingMaintenance) {
       onCancelEdit();
-      showSuccessToast('Đã cập nhật bản ghi bảo dưỡng sửa chữa.');
     } else {
       resetMaintenanceForm();
-      showSuccessToast(`Đã lưu hạng mục "${titleTrimmed}" (${formatVnd(costNum)}).`);
     }
+    onToggleExpand();
   };
 
   const isEditing = Boolean(editingFuel || editingMaintenance);
 
+  const closePopup = () => {
+    if (isEditing) onCancelEdit();
+    setErrorMsg('');
+    if (expanded) onToggleExpand();
+  };
+
   return (
-    <section
-      aria-label="Phần mở rộng nhập liệu nhiên liệu và bảo dưỡng"
-      className="no-print rounded-lg border border-slate-200 bg-white"
-    >
-      {/* Collapsible bar header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
-        <button
-          type="button"
-          onClick={onToggleExpand}
-          aria-expanded={expanded}
-          className="flex flex-1 items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded"
-        >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-700">
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </span>
-          <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-900">
-              {isEditing
-                ? editingFuel
-                  ? 'Chỉnh sửa thông tin đổ nhiên liệu'
-                  : 'Chỉnh sửa thông tin bảo dưỡng / sửa chữa'
-                : 'Nhập liệu nhanh — Đổ nhiên liệu & Bảo dưỡng sửa chữa'}
-            </div>
-            <div className="text-xs text-slate-500">
-              {expanded
-                ? 'Nhập thông tin mới để tự động cập nhật biểu đồ và báo cáo chi phí'
-                : 'Nhấn để mở rộng biểu mẫu ghi nhận lần đổ xăng hoặc hạng mục sửa chữa mới'}
-            </div>
+    <>
+      {/* Quick-entry trigger bar on main screen */}
+      <section
+        aria-label="Nhập liệu nhiên liệu và bảo dưỡng"
+        className="no-print flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-5 py-3.5"
+      >
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-slate-900">
+            Nhập liệu nhanh — Đổ nhiên liệu &amp; Bảo dưỡng sửa chữa
           </div>
-        </button>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {!expanded && (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  onTabChange('fuel');
-                  onToggleExpand();
-                }}
-                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 whitespace-nowrap shrink-0"
-              >
-                <Fuel className="h-3.5 w-3.5 text-blue-700" />
-                Đổ nhiên liệu
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onTabChange('maintenance');
-                  onToggleExpand();
-                }}
-                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 whitespace-nowrap shrink-0"
-              >
-                <Wrench className="h-3.5 w-3.5 text-amber-600" />
-                Bảo dưỡng / Sửa chữa
-              </button>
-            </>
-          )}
-          {expanded && (
-            <button
-              type="button"
-              onClick={() => {
-                if (isEditing) onCancelEdit();
-                onToggleExpand();
-              }}
-              className="rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 whitespace-nowrap shrink-0"
-            >
-              Thu gọn
-            </button>
-          )}
+          <div className="text-xs text-slate-500">
+            Bấm để mở cửa sổ nhập liệu đổ xăng hoặc hạng mục sửa chữa mới
+          </div>
         </div>
-      </div>
 
-      {savedFeedback && (
-        <div className="flex items-center gap-2 border-t border-emerald-200 bg-emerald-50 px-5 py-2.5 text-xs font-medium text-emerald-800">
-          <Check className="h-4 w-4 shrink-0 text-emerald-700" />
-          <span>{savedFeedback}</span>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              onTabChange('fuel');
+              if (!expanded) onToggleExpand();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 whitespace-nowrap shrink-0"
+          >
+            <Fuel className="h-3.5 w-3.5 text-blue-700" />
+            Đổ nhiên liệu
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onTabChange('maintenance');
+              if (!expanded) onToggleExpand();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 whitespace-nowrap shrink-0"
+          >
+            <Wrench className="h-3.5 w-3.5 text-amber-600" />
+            Bảo dưỡng / Sửa chữa
+          </button>
         </div>
-      )}
+      </section>
 
-      {/* Expanded form body */}
+      {/* Popup Dialog for Entry Form */}
       {expanded && (
-        <div className="border-t border-slate-200 p-5">
+        <div
+          className="no-print fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="entry-popup-title"
+        >
+          <div className="w-full max-w-3xl overflow-hidden rounded-lg border border-slate-200 bg-white">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <h2 id="entry-popup-title" className="text-base font-semibold text-slate-900">
+                {isEditing
+                  ? editingFuel
+                    ? 'Cập nhật thông tin đổ nhiên liệu'
+                    : 'Cập nhật thông tin bảo dưỡng / sửa chữa'
+                  : 'Ghi nhận đổ nhiên liệu / bảo dưỡng'}
+              </h2>
+              <button
+                type="button"
+                onClick={closePopup}
+                className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Đóng cửa sổ nhập liệu"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="max-h-[82vh] overflow-y-auto p-6">
           {/* Top controls: Tab switcher + Target vehicle */}
           <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
             <div
@@ -497,8 +480,7 @@ export function ExpandableEntryPanel({
                   </label>
                   <input
                     type="number"
-                    step="0.1"
-                    min="0"
+                    step="any"
                     value={fuelOdo}
                     onChange={(e) => setFuelOdo(e.target.value)}
                     placeholder={
@@ -515,8 +497,7 @@ export function ExpandableEntryPanel({
                   </label>
                   <input
                     type="number"
-                    step="10"
-                    min="1"
+                    step="any"
                     value={fuelPrice}
                     onChange={(e) => setFuelPrice(e.target.value)}
                     placeholder="Ví dụ: 22150"
@@ -531,8 +512,7 @@ export function ExpandableEntryPanel({
                   </label>
                   <input
                     type="number"
-                    step="1000"
-                    min="1"
+                    step="any"
                     value={fuelTotalCost}
                     onChange={(e) => setFuelTotalCost(e.target.value)}
                     placeholder="Ví dụ: 500000"
@@ -595,20 +575,18 @@ export function ExpandableEntryPanel({
                 </div>
 
                 <div className="flex items-center justify-end gap-2.5 lg:col-span-3">
-                  {editingFuel && (
-                    <button
-                      type="button"
-                      onClick={onCancelEdit}
-                      className="rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 whitespace-nowrap shrink-0"
-                    >
-                      Hủy sửa
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={closePopup}
+                    className="rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 whitespace-nowrap shrink-0"
+                  >
+                    Hủy
+                  </button>
                   <button
                     type="submit"
                     className="rounded-md bg-blue-700 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-800 whitespace-nowrap shrink-0"
                   >
-                    {editingFuel ? 'Cập nhật đổ xăng' : 'Lưu lần đổ nhiên liệu'}
+                    {editingFuel ? 'Cập nhật' : 'Hoàn thành'}
                   </button>
                 </div>
               </div>
@@ -649,8 +627,7 @@ export function ExpandableEntryPanel({
                   </label>
                   <input
                     type="number"
-                    step="1"
-                    min="0"
+                    step="any"
                     value={maintOdo}
                     onChange={(e) => setMaintOdo(e.target.value)}
                     placeholder={
@@ -666,8 +643,7 @@ export function ExpandableEntryPanel({
                   </label>
                   <input
                     type="number"
-                    step="1000"
-                    min="0"
+                    step="any"
                     value={maintCost}
                     onChange={(e) => setMaintCost(e.target.value)}
                     placeholder="Ví dụ: 1500000"
@@ -724,27 +700,27 @@ export function ExpandableEntryPanel({
                 </div>
 
                 <div className="flex items-center justify-end gap-2.5 lg:col-span-3">
-                  {editingMaintenance && (
-                    <button
-                      type="button"
-                      onClick={onCancelEdit}
-                      className="rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 whitespace-nowrap shrink-0"
-                    >
-                      Hủy sửa
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={closePopup}
+                    className="rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 whitespace-nowrap shrink-0"
+                  >
+                    Hủy
+                  </button>
                   <button
                     type="submit"
                     className="rounded-md bg-amber-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-amber-700 whitespace-nowrap shrink-0"
                   >
-                    {editingMaintenance ? 'Cập nhật hạng mục' : 'Lưu bảo dưỡng / sửa chữa'}
+                    {editingMaintenance ? 'Cập nhật' : 'Hoàn thành'}
                   </button>
                 </div>
               </div>
             </form>
           )}
+            </div>
+          </div>
         </div>
       )}
-    </section>
+    </>
   );
 }

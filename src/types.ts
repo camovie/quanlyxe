@@ -14,6 +14,8 @@ export interface Vehicle {
   description: string;
   source: 'imported' | 'sample' | 'manual';
   categories: CostCategory[];
+  /** Normalized license plate or 'cuong' identifying the owning account */
+  ownerUsername?: string;
 }
 
 export interface FuelLog {
@@ -44,6 +46,32 @@ export interface MaintenanceLog {
   categoryName: string;
   totalCost: number;
   notes: string;
+}
+
+export type AccountRole = 'admin' | 'user';
+
+export interface AccountRecord {
+  /** Normalized key: 'cuong' for admin, or normalized plate like '51F00808' */
+  usernameKey: string;
+  /** Display identifier: 'cuong' or formatted plate e.g. '51F-008.08' */
+  displayUsername: string;
+  role: AccountRole;
+  password: string;
+  createdAt: number;
+}
+
+export interface SessionUser {
+  usernameKey: string;
+  displayUsername: string;
+  role: AccountRole;
+}
+
+export type ThemePresetId = 'cobalt' | 'graphite' | 'amber';
+
+export interface UiCustomization {
+  theme: ThemePresetId;
+  showBlueprintBanner: boolean;
+  artworkStyle: 'dark' | 'blue';
 }
 
 export type ReportScope = 'overview' | 'fuel' | 'maintenance';

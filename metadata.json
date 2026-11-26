@@ -1,8 +1,6 @@
 {
-  "name": "Sổ Xe — Báo Cáo Nhiên Liệu & Bảo Dưỡng",
+  "name": "Theo dõi nhiên liệu & bảo dưỡng",
   "description": "Phần mềm theo dõi và tạo báo cáo sử dụng nhiên liệu, chi phí bảo dưỡng sửa chữa cho nhiều phương tiện theo tháng, năm và khoảng thời gian tùy chọn.",
   "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "majorCapabilities": []
 }

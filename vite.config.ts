@@ -6,7 +6,10 @@ import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
+  const basePath = process.env.VITE_BASE_PATH || '/';
+
   return {
+    base: basePath,
     plugins: [
       react(),
       tailwindcss(),
@@ -14,8 +17,8 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         useCredentials: true,
         manifest: {
-          id: '/',
-          name: 'Sổ Xe — Báo Cáo Nhiên Liệu & Bảo Dưỡng',
+          id: basePath,
+          name: 'Theo dõi Nhiên Liệu & Bảo Dưỡng',
           short_name: 'Sổ Xe',
           description:
             'Theo dõi và tạo báo cáo sử dụng nhiên liệu, chi phí bảo dưỡng sửa chữa cho nhiều phương tiện hoạt động offline.',
@@ -23,24 +26,24 @@ export default defineConfig(() => {
           background_color: '#F8FAFC',
           display: 'standalone',
           orientation: 'portrait-primary',
-          start_url: '/',
-          scope: '/',
+          start_url: basePath,
+          scope: basePath,
           lang: 'vi',
           icons: [
             {
-              src: '/pwa-192x192.png',
+              src: `${basePath}pwa-192x192.png`,
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-512x512.png',
+              src: `${basePath}pwa-512x512.png`,
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-maskable-512x512.png',
+              src: `${basePath}pwa-maskable-512x512.png`,
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
