@@ -87,7 +87,7 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "revision": "8a8bd8b7735ce6cf083abe4b1d7013d2"
   }, {
     "url": "index.html",
-    "revision": "e25481c0ba130c0936c295da6edf0cd2"
+    "revision": "ea1dd385e7847c6b6aa340071608edbd"
   }, {
     "url": "icon.svg",
     "revision": "d2cd2cd0f0627172fde88e26273ecb70"
@@ -113,10 +113,10 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "assets/spark-cropped.png",
     "revision": null
   }, {
-    "url": "assets/index-BGf3sHG9.js",
+    "url": "assets/index-C6ZQzb2I.js",
     "revision": null
   }, {
-    "url": "assets/index-B-DVnkJi.css",
+    "url": "assets/index-Bh5KXG4x.css",
     "revision": null
   }, {
     "url": "assets/aistudio/car2-20260824-083541_5714fd97.csv",

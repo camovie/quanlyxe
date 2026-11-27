@@ -9,7 +9,6 @@ import { AccountThemeModal } from './components/AccountThemeModal';
 import { AddVehicleModal } from './components/AddVehicleModal';
 import { AndroidInstallModal } from './components/AndroidInstallModal';
 import { ExpandableEntryPanel } from './components/ExpandableEntryPanel';
-import { FileSyncModal } from './components/FileSyncModal';
 import { KpiStrip } from './components/KpiStrip';
 import { LedgerTables } from './components/LedgerTables';
 import { LoginScreen } from './components/LoginScreen';
@@ -49,21 +48,11 @@ import {
   parseFuelioCsv,
   recalculateVehicleFuelLogs,
 } from './utils/fuelioCsv';
-import {
-  clearLinkedFileHandle,
-  FleetSyncData,
-  loadLinkedFileHandle,
-  saveLinkedFileHandle,
-  SyncFileSystemHandle,
-  writeSyncFileToHandle,
-} from './utils/fileSync';
 
 const STORAGE_KEY = 'so_xe_fleet_ledger_v1';
 const ACCOUNTS_STORAGE_KEY = 'so_xe_accounts_v1';
 const SESSION_STORAGE_KEY = 'so_xe_session_v1';
 const CUSTOMIZATION_STORAGE_KEY = 'so_xe_ui_custom_v1';
-const FILE_SYNC_AT_STORAGE_KEY = 'so_xe_file_sync_last_at_v1';
-const AUTO_WRITE_FILE_STORAGE_KEY = 'so_xe_auto_write_file_v1';
 const ATTACHED_CSV_URL = `${import.meta.env.BASE_URL}assets/aistudio/car2-20260824-083541_5714fd97.csv`;
 
 interface PersistedState {
@@ -168,29 +157,7 @@ export default function App() {
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [androidModalOpen, setAndroidModalOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const [syncModalOpen, setSyncModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Free portable cross-device file sync metadata
-  const [linkedFileHandle, setLinkedFileHandle] = useState<SyncFileSystemHandle | null>(null);
-  const [autoWriteLinkedFile, setAutoWriteLinkedFile] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(AUTO_WRITE_FILE_STORAGE_KEY) !== 'false';
-    } catch {
-      return true;
-    }
-  });
-  const [lastSyncAt, setLastSyncAt] = useState<number | null>(() => {
-    try {
-      const raw = localStorage.getItem(FILE_SYNC_AT_STORAGE_KEY);
-      if (!raw) return null;
-      const n = Number(raw);
-      return Number.isFinite(n) && n > 0 ? n : null;
-    } catch {
-      return null;
-    }
-  });
-  const [hasUnsyncedChanges, setHasUnsyncedChanges] = useState(false);
 
   const bannerCsvInputRef = useRef<HTMLInputElement | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
@@ -345,16 +312,8 @@ export default function App() {
     }
   }, [customization]);
 
-  // Restore previously linked desktop Drive/OneDrive sync file handle from IndexedDB
   useEffect(() => {
-    let active = true;
-    loadLinkedFileHandle().then((handle) => {
-      if (active && handle) {
-        setLinkedFileHandle(handle);
-      }
-    });
     return () => {
-      active = false;
       if (noticeTimerRef.current !== null) {
         window.clearTimeout(noticeTimerRef.current);
       }
@@ -370,101 +329,6 @@ export default function App() {
       setNotice(null);
       noticeTimerRef.current = null;
     }, 1000);
-  };
-
-  const handleSetLinkedHandle = (handle: SyncFileSystemHandle | null) => {
-    setLinkedFileHandle(handle);
-    if (handle) {
-      void saveLinkedFileHandle(handle);
-    } else {
-      void clearLinkedFileHandle();
-    }
-  };
-
-  const handleToggleAutoWrite = (enabled: boolean) => {
-    setAutoWriteLinkedFile(enabled);
-    try {
-      localStorage.setItem(AUTO_WRITE_FILE_STORAGE_KEY, String(enabled));
-    } catch {
-      // Ignore storage error
-    }
-  };
-
-  const handleMarkSynced = () => {
-    const now = Date.now();
-    setLastSyncAt(now);
-    setHasUnsyncedChanges(false);
-    try {
-      localStorage.setItem(FILE_SYNC_AT_STORAGE_KEY, String(now));
-    } catch {
-      // Ignore storage error
-    }
-  };
-
-  // Optional auto-write to linked Drive/OneDrive file when permission is already granted
-  useEffect(() => {
-    if (loading || !linkedFileHandle || !autoWriteLinkedFile || !hasUnsyncedChanges) return;
-    let cancelled = false;
-
-    async function autoSyncToLinked() {
-      if (!linkedFileHandle) return;
-      try {
-        if (linkedFileHandle.queryPermission) {
-          const perm = await linkedFileHandle.queryPermission({ mode: 'readwrite' });
-          if (perm !== 'granted') return;
-        }
-        await writeSyncFileToHandle(linkedFileHandle, {
-          vehicles,
-          fuelLogs,
-          maintenanceLogs,
-          accounts,
-        });
-        if (!cancelled) {
-          handleMarkSynced();
-        }
-      } catch {
-        // User can re-authorize manually inside FileSyncModal if browser revoked permission
-      }
-    }
-
-    void autoSyncToLinked();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    loading,
-    linkedFileHandle,
-    autoWriteLinkedFile,
-    hasUnsyncedChanges,
-    vehicles,
-    fuelLogs,
-    maintenanceLogs,
-    accounts,
-  ]);
-
-  const handleApplySyncedData = (payload: FleetSyncData, modeLabel: string) => {
-    const nextVehicles = enrichDefaultSparkPlate(payload.vehicles);
-    const nextAccounts = ensureAccountsForVehicles(payload.accounts, nextVehicles);
-    setVehicles(nextVehicles);
-    setFuelLogs(payload.fuelLogs);
-    setMaintenanceLogs(payload.maintenanceLogs);
-    setAccounts(nextAccounts);
-
-    if (nextVehicles.length > 0) {
-      const stillValid =
-        selectedVehicleId === 'all' || nextVehicles.some((v) => v.id === selectedVehicleId);
-      if (!stillValid) {
-        if (session?.role === 'user') {
-          const owned = nextVehicles.filter((v) =>
-            isVehicleOwnedByAccount(v, session.usernameKey)
-          );
-          setSelectedVehicleId(owned[0]?.id ?? '');
-        } else {
-          setSelectedVehicleId(nextVehicles[0].id);
-        }
-      }
-    }
-    showNotice(modeLabel);
   };
 
   // Visible vehicles filtered by logged-in user role
@@ -636,7 +500,6 @@ export default function App() {
         createdAt: Date.now(),
       };
       setAccounts((prev) => [...prev, newAcc]);
-      setHasUnsyncedChanges(true);
       loggedUser = {
         usernameKey: newAcc.usernameKey,
         displayUsername: newAcc.displayUsername,
@@ -685,7 +548,6 @@ export default function App() {
           : a
       )
     );
-    setHasUnsyncedChanges(true);
     return null;
   };
 
@@ -698,7 +560,6 @@ export default function App() {
           : a
       )
     );
-    setHasUnsyncedChanges(true);
     showNotice(`Đã đặt lại mật khẩu tài khoản về ${DEFAULT_PASSWORD}.`);
   };
 
@@ -717,7 +578,6 @@ export default function App() {
       createdAt: Date.now(),
     };
     setAccounts((prev) => [...prev, newAcc]);
-    setHasUnsyncedChanges(true);
     return null;
   };
 
@@ -769,7 +629,6 @@ export default function App() {
       setSelectedVehicleId(log.vehicleId);
     }
     ensureDateVisible(log.timestamp, log.date);
-    setHasUnsyncedChanges(true);
     showNotice(isEdit ? 'Đã cập nhật lần đổ nhiên liệu.' : 'Đã hoàn thành ghi nhận đổ nhiên liệu.');
   };
 
@@ -786,7 +645,6 @@ export default function App() {
       );
     });
     if (editingFuel?.id === id) setEditingFuel(null);
-    setHasUnsyncedChanges(true);
     showNotice('Đã xóa bản ghi đổ nhiên liệu.');
   };
 
@@ -803,7 +661,6 @@ export default function App() {
       setSelectedVehicleId(log.vehicleId);
     }
     ensureDateVisible(log.timestamp, log.date);
-    setHasUnsyncedChanges(true);
     showNotice(
       isEdit ? 'Đã cập nhật hạng mục bảo dưỡng.' : 'Đã hoàn thành ghi nhận bảo dưỡng / sửa chữa.'
     );
@@ -812,7 +669,6 @@ export default function App() {
   const handleDeleteMaintenance = (id: string) => {
     setMaintenanceLogs((prev) => prev.filter((m) => m.id !== id));
     if (editingMaintenance?.id === id) setEditingMaintenance(null);
-    setHasUnsyncedChanges(true);
     showNotice('Đã xóa hạng mục bảo dưỡng / sửa chữa.');
   };
 
@@ -835,7 +691,6 @@ export default function App() {
       return [...prev, ownedVehicle];
     });
     setSelectedVehicleId(ownedVehicle.id);
-    setHasUnsyncedChanges(true);
     showNotice(
       editingVehicle
         ? `Đã cập nhật thông tin xe "${ownedVehicle.name}".`
@@ -860,7 +715,6 @@ export default function App() {
     });
     setFuelLogs((prev) => prev.filter((l) => l.vehicleId !== vehicleId));
     setMaintenanceLogs((prev) => prev.filter((m) => m.vehicleId !== vehicleId));
-    setHasUnsyncedChanges(true);
     if (target) showNotice(`Đã xóa xe "${target.name}" và dữ liệu liên quan.`);
   };
 
@@ -908,8 +762,7 @@ export default function App() {
           [...prev, ...finalMaint].sort((a, b) => b.timestamp - a.timestamp)
         );
         setSelectedVehicleId(finalVehicle.id);
-        setHasUnsyncedChanges(true);
-        showNotice(
+          showNotice(
           `Đã nhập xe "${finalVehicle.name}" (${finalFuel.length} lần xăng, ${finalMaint.length} hạng mục bảo dưỡng).`
         );
       } catch {
@@ -1043,9 +896,6 @@ export default function App() {
         onPrintReport={() => window.print()}
         onOpenAndroidInstall={() => setAndroidModalOpen(true)}
         onOpenAccountThemeModal={() => setAccountModalOpen(true)}
-        fileSyncLinked={Boolean(linkedFileHandle)}
-        hasUnsyncedChanges={hasUnsyncedChanges}
-        onOpenFileSync={() => setSyncModalOpen(true)}
         onLogout={handleLogout}
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
@@ -1263,27 +1113,6 @@ export default function App() {
         onChangePassword={handleChangePassword}
         onResetAccountPassword={handleResetAccountPassword}
         onCreatePlateAccount={handleCreatePlateAccount}
-      />
-
-      {/* Free Cross-Device Portable File Sync Modal */}
-      <FileSyncModal
-        open={syncModalOpen}
-        onClose={() => setSyncModalOpen(false)}
-        localData={{
-          vehicles,
-          fuelLogs,
-          maintenanceLogs,
-          accounts,
-        }}
-        customization={customization}
-        lastSyncAt={lastSyncAt}
-        hasUnsyncedChanges={hasUnsyncedChanges}
-        linkedHandle={linkedFileHandle}
-        autoWriteLinkedFile={autoWriteLinkedFile}
-        onToggleAutoWrite={handleToggleAutoWrite}
-        onSetLinkedHandle={handleSetLinkedHandle}
-        onApplySyncedData={handleApplySyncedData}
-        onMarkSynced={handleMarkSynced}
       />
 
       {/* Android Offline / APK Install Modal */}

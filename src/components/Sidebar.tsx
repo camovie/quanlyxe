@@ -3,7 +3,6 @@ import {
   BarChart3,
   Car,
   Download,
-  FolderSync,
   Fuel,
   LogOut,
   Palette,
@@ -41,9 +40,6 @@ interface SidebarProps {
   onPrintReport: () => void;
   onOpenAndroidInstall: () => void;
   onOpenAccountThemeModal: () => void;
-  fileSyncLinked: boolean;
-  hasUnsyncedChanges: boolean;
-  onOpenFileSync: () => void;
   onLogout: () => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
@@ -67,9 +63,6 @@ export function Sidebar({
   onPrintReport,
   onOpenAndroidInstall,
   onOpenAccountThemeModal,
-  fileSyncLinked,
-  hasUnsyncedChanges,
-  onOpenFileSync,
   onLogout,
   mobileOpen,
   onCloseMobile,
@@ -430,23 +423,6 @@ export function Sidebar({
             In báo cáo
           </button>
         </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            onOpenFileSync();
-            onCloseMobile();
-          }}
-          className="flex w-full items-center justify-between gap-2 rounded-md border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-100/70 whitespace-nowrap"
-        >
-          <span className="flex items-center gap-2 min-w-0">
-            <FolderSync className="h-3.5 w-3.5 text-blue-700 shrink-0" />
-            <span className="truncate">Đồng bộ File đa thiết bị</span>
-          </span>
-          <span className="font-mono text-[10px] font-medium shrink-0">
-            {hasUnsyncedChanges ? 'Chưa lưu' : fileSyncLinked ? 'Đã gắn' : 'Mở'}
-          </span>
-        </button>
 
         <button
           type="button"
